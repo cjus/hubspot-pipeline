@@ -5,6 +5,47 @@ import {
   HubSpotDeal 
 } from "./hubspotModels";
 
+// Array of fake companies for obfuscating deal names
+const FAKE_COMPANIES = [
+  "Acme Corporation", "Global Dynamics", "TechNova Solutions", "Apex Industries",
+  "Summit Enterprises", "NextGen Systems", "Horizon Technologies", "Atlas Corp",
+  "Stellar Industries", "Phoenix Technologies", "Quantum Solutions", "Pinnacle Group",
+  "Velocity Systems", "Infinity Corp", "Zenith Technologies", "Catalyst Solutions",
+  "Nexus Enterprises", "Titan Industries", "Vortex Systems", "Eclipse Technologies",
+  "Fusion Corp", "Matrix Solutions", "Orbital Systems", "Spectrum Enterprises",
+  "Pulse Technologies", "Vertex Solutions", "Cosmos Industries", "Dynamo Corp",
+  "Element Systems", "Frontier Technologies", "Genesis Solutions", "Helix Corp",
+  "Impact Industries", "Kinetic Systems", "Lunar Technologies", "Meridian Corp",
+  "Nova Solutions", "Omega Industries", "Paradigm Systems", "Quantum Leap Corp",
+  "Radiant Technologies", "Synergy Solutions", "Turbo Industries", "Unity Corp",
+  "Vector Systems", "Wavelength Technologies", "Xerion Solutions", "Zenith Corp"
+];
+
+// Deal types for variety
+const DEAL_TYPES = [
+  "Enterprise License", "Professional Services", "Annual Subscription", 
+  "Implementation Project", "Support Contract", "Consulting Agreement",
+  "Software License", "Platform Migration", "Digital Transformation",
+  "Cloud Infrastructure", "Security Audit", "Data Analytics Project"
+];
+
+// Check if data should be anonymized (defaults to false for real data)
+const ANONYMIZE_DATA = process.env.ANONYMIZE_DATA === 'true';
+
+// Log the anonymization mode on startup
+console.log(`🔧 HubSpot Pipeline Mode: ${ANONYMIZE_DATA ? 'ANONYMIZED DATA (Demo/Public Safe)' : 'REAL DATA (Internal Use)'}`);
+
+// Helper function to generate deterministic random values based on deal ID
+const getRandomFromId = (dealId: string, arrayLength: number): number => {
+  let hash = 0;
+  for (let i = 0; i < dealId.length; i++) {
+    const char = dealId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % arrayLength;
+};
+
 // Transform raw HubSpot deal events to processed/normalized deal events
 HubSpotDealRawPipeline.stream!.addTransform(
   HubSpotDealPipeline.stream!,
@@ -25,9 +66,26 @@ HubSpotDealRawPipeline.stream!.addTransform(
 
     const props = rawDeal.properties;
 
-    // Extract basic deal information - properties may be missing if they were null in HubSpot
-    const dealName = props.dealname || "Untitled Deal";
-    const amount = parseFloat(props.amount || "0") || 0;
+    // Generate deal name based on anonymization flag
+    let dealName: string;
+    let amount: number;
+    
+    if (ANONYMIZE_DATA) {
+      // Generate obfuscated deal information using fake companies
+      const companyIndex = getRandomFromId(rawDeal.id, FAKE_COMPANIES.length);
+      const dealTypeIndex = getRandomFromId(rawDeal.id + "type", DEAL_TYPES.length);
+      dealName = `${FAKE_COMPANIES[companyIndex]} - ${DEAL_TYPES[dealTypeIndex]}`;
+      
+      // Ensure amount is always over 100K (between 100K and 5M)
+      const originalAmount = parseFloat(props.amount || "0") || 0;
+      const baseAmount = 100000; // 100K minimum
+      const multiplier = (getRandomFromId(rawDeal.id + "amount", 100) + 1) / 2; // 0.5 to 50
+      amount = baseAmount + (originalAmount > 0 ? Math.max(originalAmount, baseAmount * multiplier) : baseAmount * multiplier);
+    } else {
+      // Use real HubSpot data
+      dealName = props.dealname || "Untitled Deal";
+      amount = parseFloat(props.amount || "0") || 0;
+    }
     const currency = props.deal_currency_code || "USD";
     const stage = props.dealstage || "unknown";
     const stageLabel = props.dealstage_label || stage;
@@ -51,8 +109,18 @@ HubSpotDealRawPipeline.stream!.addTransform(
     // Extract owner and metrics - handle null values
     const ownerId = props.hubspot_owner_id;
     const stageProbability = parseFloat(props.hs_deal_stage_probability || "0") || 0;
-    const forecastAmount = parseFloat(props.hs_forecast_amount || props.amount || "0") || 0;
-    const projectedAmount = parseFloat(props.hs_projected_amount || props.amount || "0") || 0;
+    
+    // Calculate forecast and projected amounts based on anonymization
+    let forecastAmount: number;
+    let projectedAmount: number;
+    
+    if (ANONYMIZE_DATA) {
+      forecastAmount = parseFloat(props.hs_forecast_amount || "0") || amount * (stageProbability / 100);
+      projectedAmount = parseFloat(props.hs_projected_amount || "0") || amount;
+    } else {
+      forecastAmount = parseFloat(props.hs_forecast_amount || props.amount || "0") || 0;
+      projectedAmount = parseFloat(props.hs_projected_amount || props.amount || "0") || 0;
+    }
 
     // Calculate deal status flags
     const isWon = stage.toLowerCase().includes("won") || stage.toLowerCase().includes("closed");
@@ -118,7 +186,7 @@ HubSpotDealRawPipeline.stream!.addTransform(
       customProperties
     };
 
-    console.log(`Processed HubSpot deal: ${dealName} (${rawDeal.id}) - ${stage} - $${amount}`);
+    console.log(`Processed HubSpot deal: ${dealName} (${rawDeal.id}) - ${stage} - $${amount} ${ANONYMIZE_DATA ? '[ANONYMIZED]' : '[REAL DATA]'}`);
     return result;
   },
   {
@@ -128,12 +196,24 @@ HubSpotDealRawPipeline.stream!.addTransform(
 
 // Add a streaming consumer to log raw HubSpot deal events
 const printHubSpotDealEvent = (rawDeal: HubSpotDealRaw): void => {
+  let displayName: string;
+  
+  if (ANONYMIZE_DATA) {
+    // Generate obfuscated name for logging consistency
+    const companyIndex = getRandomFromId(rawDeal.id, FAKE_COMPANIES.length);
+    const dealTypeIndex = getRandomFromId(rawDeal.id + "type", DEAL_TYPES.length);
+    displayName = `${FAKE_COMPANIES[companyIndex]} - ${DEAL_TYPES[dealTypeIndex]}`;
+  } else {
+    displayName = rawDeal.properties.dealname || "Untitled";
+  }
+  
   console.log("Received HubSpot Deal event:");
   console.log(`  Deal ID: ${rawDeal.id}`);
-  console.log(`  Deal Name: ${rawDeal.properties.dealname || "Untitled"}`);
+  console.log(`  Deal Name: ${displayName}`);
   console.log(`  Amount: ${rawDeal.properties.amount || "0"}`);
   console.log(`  Stage: ${rawDeal.properties.dealstage || "unknown"}`);
   console.log(`  Updated: ${rawDeal.updatedAt}`);
+  console.log(`  Anonymized: ${ANONYMIZE_DATA ? 'Yes' : 'No'}`);
   console.log("---");
 };
 
@@ -144,5 +224,17 @@ HubSpotDealRawPipeline.deadLetterQueue!.addConsumer((deadLetter) => {
   console.error("HubSpot Deal transformation failed:");
   console.error(deadLetter);
   const rawDeal: HubSpotDealRaw = deadLetter.asTyped();
-  console.error(`Failed deal: ${rawDeal.properties.dealname} (${rawDeal.id})`);
+  
+  let errorDisplayName: string;
+  
+  if (ANONYMIZE_DATA) {
+    // Generate obfuscated name for error logging
+    const companyIndex = getRandomFromId(rawDeal.id, FAKE_COMPANIES.length);
+    const dealTypeIndex = getRandomFromId(rawDeal.id + "type", DEAL_TYPES.length);
+    errorDisplayName = `${FAKE_COMPANIES[companyIndex]} - ${DEAL_TYPES[dealTypeIndex]}`;
+  } else {
+    errorDisplayName = rawDeal.properties.dealname || "Unknown Deal";
+  }
+  
+  console.error(`Failed deal: ${errorDisplayName} (${rawDeal.id})`);
 });
