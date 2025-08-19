@@ -1,6 +1,9 @@
-export * from "./ingest/models";
-export * from "./ingest/transforms";
+// HubSpot data models and transformations
+export * from "./ingest/hubspotModels";
+export * from "./ingest/hubspotTransforms";
 
-export * from "./apis/bar";
-export * from "./views/barAggregated";
-export * from "./scripts/generateRandom";
+// HubSpot consumption APIs
+export * from "./apis/hubspotDeals";
+
+// HubSpot data sync workflows
+export * from "./scripts/hubspotWorkflow";

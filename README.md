@@ -1,4 +1,6 @@
-# This is a [MooseJs](https://www.moosejs.com/) project bootstrapped with the [`Moose CLI`](https://github.com/514-labs/moose/tree/main/apps/framework-cli).
+# HubSpot Deals Analytics Pipeline
+
+A comprehensive sales analytics platform built with [Moose](https://www.moosejs.com/) for ingesting, processing, and analyzing HubSpot deals data in real-time.
 
 <a href="https://www.getmoose.dev/"><img src="https://raw.githubusercontent.com/514-labs/moose/main/logo-m-light.png" alt="moose logo" height="100px"></a>
 
@@ -7,26 +9,181 @@
 [![Docs](https://img.shields.io/badge/quick_start-docs-blue.svg)](https://docs.moosejs.com/)
 [![MIT license](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-[Moose](https://www.getmoose.dev/) is an open-source data engineering framework designed to drastically accellerate AI-enabled software developers, as you prototype and scale data-intensive features and applications.
+## Overview
 
-# Get started with Moose
+This project provides a production-ready data pipeline for HubSpot sales teams to gain deep insights into their deal performance, pipeline health, and revenue forecasting. Built on [Moose](https://www.getmoose.dev/), it offers real-time data processing, comprehensive analytics APIs, and enterprise-grade reliability.
 
-Get up and running with your own Moose project in minutes by using our [Quick Start Tutorial](https://docs.getmoose.dev/quickstart). We also have our [Docs](https://docs.getmoose.dev/) where you can pick your path, learn more about Moose, and learn what types of applications can be built with Moose.
+### Key Features
 
-# Beta release
+- 🔄 **Real-time Data Ingestion** - Stream HubSpot deals data via REST API
+- 🏗️ **Robust Data Processing** - Transform raw HubSpot data into analytics-ready format
+- 📊 **Rich Analytics APIs** - Pre-built endpoints for deal analytics, pipeline performance, and deal lookup
+- 🚨 **Error Handling** - Dead letter queues for monitoring and debugging failed transformations
+- ⚡ **High Performance** - Redis caching and ClickHouse analytics database
+- 🔍 **Flexible Querying** - Group by stage, pipeline, time period, or custom filters
 
-Moose is beta software and is in active development. Multiple public companies across the globe are using Moose in production. We’d love for you to [get your hands on it and try it out](https://docs.getmoose.dev/quickstart). If you're interested in using Moose in production, or if you just want to chat, you can reach us at [hello@moosejs.dev](mailto:hello@moosejs.dev) or in the Moose developer community below.
+## Architecture
 
-# Community
+```
+HubSpot API → Raw Ingestion → Stream Processing → Analytics Storage → REST APIs
+```
 
-You can join the Moose community [on Slack](https://join.slack.com/t/moose-community/shared_invite/zt-2fjh5n3wz-cnOmM9Xe9DYAgQrNu8xKxg).
+### Data Flow
+1. **Raw Data Ingestion**: HubSpot deal data ingested via `POST /ingest/HubSpotDealRaw`
+2. **Stream Processing**: Real-time transformation from raw to normalized format
+3. **Analytics Storage**: Processed data stored in ClickHouse for fast querying
+4. **Consumption APIs**: RESTful endpoints for analytics, reporting, and deal lookup
 
-Here you can get together with other Moose developers, ask questions, give feedback, make feature requests, and interact directly with Moose maintainers.
+## Quick Start
 
-# Contributing
+### Prerequisites
+- Node.js 18+ 
+- Docker (for local Moose infrastructure)
+- HubSpot Private App token (for integration)
 
-We welcome contributions to Moose! Please check out the [contribution guidelines](https://github.com/514-labs/moose/blob/main/CONTRIBUTING.md).
+### Setup
+```bash
+# Clone and setup
+git clone <repository-url>
+cd hubspot-pipeline
+npm install
 
-# Made by 514
+# Start Moose development environment
+npm run dev
+```
 
-Our mission at [fiveonefour](https://www.fiveonefour.com/) is to bring incredible developer experiences to the data stack. If you’re interested in enterprise solutions, commercial support, or design partnerships, then we’d love to chat with you: [hello@moosejs.dev](mailto:hello@moosejs.dev)
+The application will start with:
+- **Ingestion API**: `http://localhost:4000/ingest/HubSpotDealRaw`
+- **Analytics APIs**: `http://localhost:4000/consumption/*`
+- **Health Check**: `http://localhost:4000/health`
+
+## API Endpoints
+
+### Ingestion
+- `POST /ingest/HubSpotDealRaw` - Ingest raw HubSpot deal data
+
+### Analytics & Reporting
+- `GET /consumption/hubspot-deals-analytics` - Deal analytics grouped by stage, pipeline, or time
+- `GET /consumption/hubspot-deal-lookup` - Search and lookup specific deals  
+- `GET /consumption/hubspot-deal-pipeline` - Pipeline performance metrics
+
+### Example API Calls
+
+**Deal Analytics by Stage:**
+```bash
+curl "http://localhost:4000/consumption/hubspot-deals-analytics?groupBy=stage&limit=10"
+```
+
+**Search Deals:**
+```bash
+curl "http://localhost:4000/consumption/hubspot-deal-lookup?dealName=Enterprise&limit=5"
+```
+
+**Pipeline Performance:**
+```bash
+curl "http://localhost:4000/consumption/hubspot-deal-pipeline?daysBack=30&limit=5"
+```
+
+## Data Schema
+
+### Raw Deal Data (`HubSpotDealRaw`)
+```typescript
+{
+  id: string;                    // HubSpot deal ID
+  properties: {                  // Flexible HubSpot properties
+    dealname?: string;
+    amount?: string;
+    dealstage?: string;
+    pipeline?: string;
+    // ... all other HubSpot properties
+  };
+  createdAt: string;            // ISO timestamp
+  updatedAt: string;            // ISO timestamp
+  archived: boolean;
+  associations: {               // Related records
+    contacts: string[];
+    companies: string[];
+  };
+}
+```
+
+### Processed Deal Data (`HubSpotDeal`)
+```typescript
+{
+  id: string;
+  dealName: string;
+  amount: number;               // Parsed numeric value
+  currency: string;
+  stage: string;
+  stageLabel: string;
+  pipeline: string;
+  pipelineLabel: string;
+  closeDate?: Date;
+  createdAt: Date;
+  lastModifiedAt: Date;
+  ownerId?: string;
+  stageProbability: number;     // 0-1 value
+  forecastAmount: number;
+  projectedAmount: number;
+  daysToClose?: number;         // Calculated field
+  isWon: boolean;              // Derived from stage
+  isClosed: boolean;           // Derived from stage
+  // ... more fields
+}
+```
+
+## HubSpot Integration
+
+This pipeline is designed to work with the included HubSpot connector for seamless data integration:
+
+```typescript
+import { createHubSpotConnector } from "./hubspot";
+
+const hubspot = createHubSpotConnector();
+hubspot.initialize({ 
+  auth: { type: "bearer", bearer: { token: process.env.HUBSPOT_TOKEN } }
+});
+
+// Stream deals to Moose pipeline
+for await (const deal of hubspot.streamDeals({ pageSize: 100 })) {
+  await fetch("http://localhost:4000/ingest/HubSpotDealRaw", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(deal)
+  });
+}
+```
+
+## Deployment
+
+This pipeline is production-ready and can be deployed using:
+- **Docker**: Container-based deployment
+- **Cloud Platforms**: AWS, GCP, Azure
+- **Kubernetes**: Helm charts available
+- **Moose Cloud**: Managed hosting (coming soon)
+
+## Monitoring & Observability
+
+- **Health Checks**: `/health` endpoint for service monitoring
+- **Dead Letter Queues**: Failed transformations tracked for debugging
+- **Metrics**: Built-in performance and data quality metrics
+- **Logs**: Structured logging for operational insights
+
+## Built with Moose
+
+[Moose](https://www.getmoose.dev/) is an open-source data engineering framework designed to drastically accelerate AI-enabled software developers, as you prototype and scale data-intensive features and applications.
+
+### Community & Support
+
+- 📖 **Documentation**: [docs.getmoose.dev](https://docs.getmoose.dev/)
+- 💬 **Community Slack**: [Join here](https://join.slack.com/t/moose-community/shared_invite/zt-2fjh5n3wz-cnOmM9Xe9DYAgQrNu8xKxg)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/514-labs/moose/issues)
+- 📧 **Enterprise Support**: [hello@moosejs.dev](mailto:hello@moosejs.dev)
+
+### Contributing
+
+We welcome contributions! Please check out the [contribution guidelines](https://github.com/514-labs/moose/blob/main/CONTRIBUTING.md).
+
+---
+
+**Made by [514](https://www.fiveonefour.com/)** - Bringing incredible developer experiences to the data stack.

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@514labs/moose-lib": "latest",
+    "connector-hubspot": "file:./hubspot",
     "axios": "^1.7.7",
     "ts-patch": "^3.3.0",
     "typia": "^7.6.0"
