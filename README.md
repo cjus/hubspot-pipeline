@@ -1,5 +1,6 @@
 # HubSpot Deals Analytics Pipeline
 
+
 A comprehensive sales analytics platform built with [Moose](https://www.moosejs.com/) for ingesting, processing, and analyzing HubSpot deals data in real-time.
 
 <a href="https://www.getmoose.dev/"><img src="https://raw.githubusercontent.com/514-labs/moose/main/logo-m-light.png" alt="moose logo" height="100px"></a>
