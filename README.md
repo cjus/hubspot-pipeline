@@ -22,6 +22,7 @@ This project provides a production-ready data pipeline for HubSpot sales teams t
 - 🚨 **Error Handling** - Dead letter queues for monitoring and debugging failed transformations
 - ⚡ **High Performance** - Redis caching and ClickHouse analytics database
 - 🔍 **Flexible Querying** - Group by stage, pipeline, time period, or custom filters
+- 🚀 **Workflow Automation** - Programmatically trigger data sync workflows via REST API
 
 ## Architecture
 
@@ -34,6 +35,7 @@ HubSpot API → Raw Ingestion → Stream Processing → Analytics Storage → RE
 2. **Stream Processing**: Real-time transformation from raw to normalized format
 3. **Analytics Storage**: Processed data stored in ClickHouse for fast querying
 4. **Consumption APIs**: RESTful endpoints for analytics, reporting, and deal lookup
+5. **Workflow Automation**: Trigger data sync workflows programmatically via API
 
 ## Quick Start
 
@@ -56,6 +58,7 @@ npm run dev
 The application will start with:
 - **Ingestion API**: `http://localhost:4000/ingest/HubSpotDealRaw`
 - **Analytics APIs**: `http://localhost:4000/consumption/*`
+- **Workflow Trigger**: `http://localhost:4000/consumption/hubspot-workflow-trigger`
 - **Health Check**: `http://localhost:4000/health`
 
 ## API Endpoints
@@ -67,6 +70,9 @@ The application will start with:
 - `GET /consumption/hubspot-deals-analytics` - Deal analytics grouped by stage, pipeline, or time
 - `GET /consumption/hubspot-deal-lookup` - Search and lookup specific deals  
 - `GET /consumption/hubspot-deal-pipeline` - Pipeline performance metrics
+
+### Workflow Management
+- `GET /consumption/hubspot-workflow-trigger` - Programmatically trigger HubSpot data sync workflows
 
 ### Example API Calls
 
@@ -83,6 +89,16 @@ curl "http://localhost:4000/consumption/hubspot-deal-lookup?dealName=Enterprise&
 **Pipeline Performance:**
 ```bash
 curl "http://localhost:4000/consumption/hubspot-deal-pipeline?daysBack=30&limit=5"
+```
+
+**Trigger HubSpot Data Sync (Fire-and-Forget):**
+```bash
+curl "http://localhost:4000/consumption/hubspot-workflow-trigger"
+```
+
+**Trigger HubSpot Data Sync (Wait for Completion):**
+```bash
+curl "http://localhost:4000/consumption/hubspot-workflow-trigger?waitForCompletion=true&timeoutSeconds=600"
 ```
 
 ## Data Schema
