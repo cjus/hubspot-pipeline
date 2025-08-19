@@ -4,7 +4,7 @@
   "private": true,
   "description": "Self-contained TypeScript HubSpot connector (CRM v3) with Private App Token auth",
   "license": "MIT",
-  "type": "module",
+
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "exports": {

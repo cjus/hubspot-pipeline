@@ -1,8 +1,11 @@
+.env
+.DS_Store
 .moose
 node_modules
 dist
 coverage
 .ts-node
-
 .cursor
 scratch
+*.sql
+

@@ -1,4 +1,4 @@
-import { ConsumptionApi, MooseCache } from "@514labs/moose-lib";
+import { ConsumptionApi } from "@514labs/moose-lib";
 import { tags } from "typia";
 
 // This file provides consumption APIs for HubSpot deals analytics
@@ -57,79 +57,129 @@ export const HubSpotDealsAnalyticsApi = new ConsumptionApi<
   { groupBy = "stage", limit = 10, includeArchived = false, currency },
   { client, sql },
 ) => {
-  const cache = await MooseCache.get();
-  const cacheKey = `hubspot-deals-analytics:${groupBy}:${limit}:${includeArchived}:${currency || 'all'}`;
 
-  // Try cache first
-  const cachedData = await cache.get<HubSpotDealAnalyticsData[]>(cacheKey);
-  if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
-    return cachedData;
-  }
 
   // Build query based on groupBy parameter
   let query;
   
   if (groupBy === "pipeline") {
-    query = sql`
-      SELECT 
-        pipeline as groupField,
-        pipelineLabel as groupLabel,
-        count(*) as dealCount,
-        sum(amount) as totalAmount,
-        avg(amount) as avgAmount,
-        sum(case when isWon then amount else 0 end) as wonAmount,
-        count(case when isWon then 1 end) as wonCount,
-        round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
-        avg(daysToClose) as avgDaysToClose
-      FROM HubSpotDeal 
-      WHERE isArchived = ${includeArchived} ${currency ? sql` AND currency = ${currency}` : sql``}
-      GROUP BY pipeline, pipelineLabel
-      ORDER BY totalAmount DESC
-      LIMIT ${limit}
-    `;
+    if (currency) {
+      query = sql`
+        SELECT 
+          pipeline as groupField,
+          pipelineLabel as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived} AND currency = ${currency}
+        GROUP BY pipeline, pipelineLabel
+        ORDER BY totalAmount DESC
+        LIMIT ${limit}
+      `;
+    } else {
+      query = sql`
+        SELECT 
+          pipeline as groupField,
+          pipelineLabel as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived}
+        GROUP BY pipeline, pipelineLabel
+        ORDER BY totalAmount DESC
+        LIMIT ${limit}
+      `;
+    }
   } else if (groupBy === "month") {
-    query = sql`
-      SELECT 
-        toYYYYMM(createdAt) as groupField,
-        formatDateTime(createdAt, '%Y-%m') as groupLabel,
-        count(*) as dealCount,
-        sum(amount) as totalAmount,
-        avg(amount) as avgAmount,
-        sum(case when isWon then amount else 0 end) as wonAmount,
-        count(case when isWon then 1 end) as wonCount,
-        round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
-        avg(daysToClose) as avgDaysToClose
-      FROM HubSpotDeal 
-      WHERE isArchived = ${includeArchived} ${currency ? sql` AND currency = ${currency}` : sql``}
-      GROUP BY toYYYYMM(createdAt), formatDateTime(createdAt, '%Y-%m')
-      ORDER BY groupField DESC
-      LIMIT ${limit}
-    `;
+    if (currency) {
+      query = sql`
+        SELECT 
+          toYYYYMM(createdAt) as groupField,
+          formatDateTime(createdAt, '%Y-%m') as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived} AND currency = ${currency}
+        GROUP BY toYYYYMM(createdAt), formatDateTime(createdAt, '%Y-%m')
+        ORDER BY groupField DESC
+        LIMIT ${limit}
+      `;
+    } else {
+      query = sql`
+        SELECT 
+          toYYYYMM(createdAt) as groupField,
+          formatDateTime(createdAt, '%Y-%m') as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived}
+        GROUP BY toYYYYMM(createdAt), formatDateTime(createdAt, '%Y-%m')
+        ORDER BY groupField DESC
+        LIMIT ${limit}
+      `;
+    }
   } else {
-    query = sql`
-      SELECT 
-        stage as groupField,
-        stageLabel as groupLabel,
-        count(*) as dealCount,
-        sum(amount) as totalAmount,
-        avg(amount) as avgAmount,
-        sum(case when isWon then amount else 0 end) as wonAmount,
-        count(case when isWon then 1 end) as wonCount,
-        round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
-        avg(daysToClose) as avgDaysToClose
-      FROM HubSpotDeal 
-      WHERE isArchived = ${includeArchived} ${currency ? sql` AND currency = ${currency}` : sql``}
-      GROUP BY stage, stageLabel
-      ORDER BY totalAmount DESC
-      LIMIT ${limit}
-    `;
+    if (currency) {
+      query = sql`
+        SELECT 
+          stage as groupField,
+          stageLabel as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived} AND currency = ${currency}
+        GROUP BY stage, stageLabel
+        ORDER BY totalAmount DESC
+        LIMIT ${limit}
+      `;
+    } else {
+      query = sql`
+        SELECT 
+          stage as groupField,
+          stageLabel as groupLabel,
+          count(*) as dealCount,
+          sum(amount) as totalAmount,
+          avg(amount) as avgAmount,
+          sum(case when isWon then amount else 0 end) as wonAmount,
+          count(case when isWon then 1 end) as wonCount,
+          round(count(case when isWon then 1 end) * 100.0 / count(*), 2) as winRate,
+          avg(daysToClose) as avgDaysToClose
+        FROM HubSpotDeal FINAL
+        WHERE isArchived = ${includeArchived}
+        GROUP BY stage, stageLabel
+        ORDER BY totalAmount DESC
+        LIMIT ${limit}
+      `;
+    }
   }
 
   const data = await client.query.execute<HubSpotDealAnalyticsData>(query);
   const result: HubSpotDealAnalyticsData[] = await data.json();
-
-  // Cache for 30 minutes
-  await cache.set(cacheKey, result, 1800);
 
   return result;
 });
@@ -142,14 +192,7 @@ export const HubSpotDealLookupApi = new ConsumptionApi<
   { dealId, dealName, ownerId, stage, limit = 20 },
   { client, sql },
 ) => {
-  const cache = await MooseCache.get();
-  const cacheKey = `hubspot-deal-lookup:${dealId || ''}:${dealName || ''}:${ownerId || ''}:${stage || ''}:${limit}`;
 
-  // Try cache first
-  const cachedData = await cache.get<HubSpotDealData[]>(cacheKey);
-  if (cachedData && Array.isArray(cachedData)) {
-    return cachedData;
-  }
 
   // Build query with dynamic WHERE conditions
   let query;
@@ -160,8 +203,41 @@ export const HubSpotDealLookupApi = new ConsumptionApi<
         id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
         closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
         associatedContacts, associatedCompanies
-      FROM HubSpotDeal 
+      FROM HubSpotDeal FINAL
       WHERE id = ${dealId}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (dealName && ownerId && stage) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE dealName ILIKE ${`%${dealName}%`} AND ownerId = ${ownerId} AND stage = ${stage}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (dealName && ownerId) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE dealName ILIKE ${`%${dealName}%`} AND ownerId = ${ownerId}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (dealName && stage) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE dealName ILIKE ${`%${dealName}%`} AND stage = ${stage}
       ORDER BY lastModifiedAt DESC
       LIMIT ${limit}
     `;
@@ -171,10 +247,41 @@ export const HubSpotDealLookupApi = new ConsumptionApi<
         id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
         closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
         associatedContacts, associatedCompanies
-      FROM HubSpotDeal 
+      FROM HubSpotDeal FINAL
       WHERE dealName ILIKE ${`%${dealName}%`}
-      ${ownerId ? sql` AND ownerId = ${ownerId}` : sql``}
-      ${stage ? sql` AND stage = ${stage}` : sql``}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (ownerId && stage) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE ownerId = ${ownerId} AND stage = ${stage}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (ownerId) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE ownerId = ${ownerId}
+      ORDER BY lastModifiedAt DESC
+      LIMIT ${limit}
+    `;
+  } else if (stage) {
+    query = sql`
+      SELECT 
+        id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
+        closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
+        associatedContacts, associatedCompanies
+      FROM HubSpotDeal FINAL
+      WHERE stage = ${stage}
       ORDER BY lastModifiedAt DESC
       LIMIT ${limit}
     `;
@@ -184,10 +291,7 @@ export const HubSpotDealLookupApi = new ConsumptionApi<
         id, dealName, amount, currency, stage, stageLabel, pipeline, pipelineLabel,
         closeDate, createdAt, ownerId, isWon, isClosed, contactCount,
         associatedContacts, associatedCompanies
-      FROM HubSpotDeal 
-      WHERE 1=1
-      ${ownerId ? sql` AND ownerId = ${ownerId}` : sql``}
-      ${stage ? sql` AND stage = ${stage}` : sql``}
+      FROM HubSpotDeal FINAL
       ORDER BY lastModifiedAt DESC
       LIMIT ${limit}
     `;
@@ -196,8 +300,7 @@ export const HubSpotDealLookupApi = new ConsumptionApi<
   const data = await client.query.execute<HubSpotDealData>(query);
   const result: HubSpotDealData[] = await data.json();
 
-  // Cache for 15 minutes (shorter since deal data changes more frequently)
-  await cache.set(cacheKey, result, 900);
+
 
   return result;
 });
@@ -222,14 +325,7 @@ export const HubSpotDealPipelineApi = new ConsumptionApi<
   { daysBack = 30, limit = 10 },
   { client, sql },
 ): Promise<HubSpotPipelinePerformanceData[]> => {
-  const cache = await MooseCache.get();
-  const cacheKey = `hubspot-deal-pipeline:${daysBack}:${limit}`;
 
-  // Try cache first
-  const cachedData = await cache.get<HubSpotPipelinePerformanceData[]>(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
 
   const query = sql`
     SELECT 
@@ -242,8 +338,8 @@ export const HubSpotDealPipelineApi = new ConsumptionApi<
       sum(case when isClosed and not isWon then 1 else 0 end) as lostDeals,
       avg(case when isClosed then daysToClose end) as avgDaysToClose,
       round(sum(case when isWon then 1 else 0 end) * 100.0 / count(*), 2) as conversionRate
-    FROM HubSpotDeal 
-    WHERE createdAt >= now() - interval ${daysBack} day
+    FROM HubSpotDeal FINAL
+    WHERE createdAt >= subtractDays(now(), ${daysBack})
     GROUP BY pipeline, pipelineLabel
     ORDER BY totalValue DESC
     LIMIT ${limit}
@@ -252,8 +348,7 @@ export const HubSpotDealPipelineApi = new ConsumptionApi<
   const data = await client.query.execute<HubSpotPipelinePerformanceData>(query);
   const result: HubSpotPipelinePerformanceData[] = await data.json();
 
-  // Cache for 1 hour
-  await cache.set(cacheKey, result, 3600);
+
 
   return result;
 });
