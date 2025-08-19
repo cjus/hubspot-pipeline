@@ -4,7 +4,6 @@ import {
   HubSpotDealRaw, 
   HubSpotDeal 
 } from "./hubspotModels";
-import { MooseCache } from "@514labs/moose-lib";
 
 // Transform raw HubSpot deal events to processed/normalized deal events
 HubSpotDealRawPipeline.stream!.addTransform(
@@ -14,28 +13,15 @@ HubSpotDealRawPipeline.stream!.addTransform(
      * Transform HubSpot raw deal data to normalized format.
      * 
      * Normal flow:
-     * 1. Check cache for previously processed deals
-     * 2. Extract and type properties from flexible HubSpot properties object
-     * 3. Convert string values to appropriate types
-     * 4. Calculate derived fields (isWon, isClosed, daysToClose)
-     * 5. Cache the result
-     * 6. Return normalized deal
+     * 1. Extract and type properties from flexible HubSpot properties object
+     * 2. Convert string values to appropriate types
+     * 3. Calculate derived fields (isWon, isClosed, daysToClose)
+     * 4. Return normalized deal
      * 
      * Error flow (DLQ):
      * - If transformation fails, deal goes to dead letter queue
      * - Enables monitoring, debugging, and retry strategies
      */
-
-    // Initialize cache
-    const cache = await MooseCache.get();
-    const cacheKey = `hubspot-deal:${rawDeal.id}`;
-
-    // Check if we have processed this deal before
-    const cached = await cache.get<HubSpotDeal>(cacheKey);
-    if (cached) {
-      console.log(`Using cached HubSpot deal result for ${rawDeal.id}`);
-      return cached;
-    }
 
     const props = rawDeal.properties;
 
@@ -132,11 +118,7 @@ HubSpotDealRawPipeline.stream!.addTransform(
       customProperties
     };
 
-    // Cache the result (2 hours retention)
-    await cache.set(cacheKey, result, 7200);
-
     console.log(`Processed HubSpot deal: ${dealName} (${rawDeal.id}) - ${stage} - $${amount}`);
-
     return result;
   },
   {
