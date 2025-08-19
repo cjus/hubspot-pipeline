@@ -4,6 +4,7 @@
   "scripts": {
     "moose": "moose-cli",
     "build": "cd app/hubspot; npm run build; cd ../..; moose-cli build --docker",
+    "postinstall": "echo 'postinstall hook ran!' && cd app/hubspot && npm install && npm run build && cd ../..",
     "dev": "moose-cli dev"
   },
   "dependencies": {
