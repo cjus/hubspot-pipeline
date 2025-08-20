@@ -81,7 +81,7 @@ HubSpotDealRawPipeline.stream!.addTransform(
       const baseAmount = 100000; // 100K minimum
       const multiplier = (getRandomFromId(rawDeal.id + "amount", 100) + 1) / 2; // 0.5 to 50
       amount = baseAmount + (originalAmount > 0 ? Math.max(originalAmount, baseAmount * multiplier) : baseAmount * multiplier);
-      amount += 20000;
+      amount += 20001;
     } else {
       // Use real HubSpot data
       dealName = props.dealname || "Untitled Deal";
